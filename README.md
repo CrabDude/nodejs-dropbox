@@ -1,12 +1,12 @@
-## Dropbox [(raw)](https://gist.github.com/CrabDude/040af9c1b93e350608ff/raw)
+# Dropbox
 
 This is a basic Dropbox clone to sync files across multiple remote folders.
 
 Time spent: `<Number of hours spent>`
 
-### Features
+## Features
 
-#### Required
+### Required
 
 - [x] Completed Requireds marked with `[x]`
 - [ ] Walkthrough Gif embedded in README
@@ -33,7 +33,7 @@ Time spent: `<Number of hours spent>`
 - [ ] User can connect to the server using an FTP client
 
 
-### Walkthrough
+## Walkthrough
 
 `<Add your Walkthrough Gif here (by updating the image URL)>`
 ![Video Walkthrough](...)
