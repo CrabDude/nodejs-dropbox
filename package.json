@@ -25,13 +25,6 @@
   },
   "homepage": "https://github.com/CrabDude/nodejs-dropbox#readme",
   "dependencies": {
-    "bluebird-nodeify": "^1.0.0",
-    "express": "^4.0.0",
-    "mime-types": "^2.0.10",
-    "mkdirp": "^0.5.0",
-    "morgan": "^1.5.2",
-    "rimraf": "^2.5.4",
-    "yargs": "^3.8.0",
     "babel-cli": "^6.16.0",
     "babel-preset-nodev6": "^1.0.0",
     "babel-register": "^6.14.0",

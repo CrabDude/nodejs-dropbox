@@ -1,106 +1,103 @@
-let path = require('path')
-let fs = require('fs')
-let express = require('express')
-let morgan = require('morgan')
-let nodeify = require('bluebird-nodeify')
-let mime = require('mime-types')
-let rimraf = require('rimraf')
-let mkdirp = require('mkdirp')
-let argv = require('yargs')
-  .default('dir', process.cwd())
-  .argv
+#!/usr/bin/env babel-node
 
-require('songbird')
+require('./helper')
 
-const NODE_ENV = process.env.NODE_ENV
-const PORT = process.env.PORT || 8000
-const ROOT_DIR = path.resolve(argv.dir)
+const path = require('path')
+const fs = require('fs').promise
+const Hapi = require('hapi')
+const asyncHandlerPlugin = require('hapi-async-handler')
 
-let app = express()
+// const cat = require('./cat')
+// const rm = require('./rm')
+// const mkdir = require('./mkdir')
+// const touch = require('./touch')
 
-if (NODE_ENV === 'development') {
-  app.use(morgan('dev'))
+function getLocalFilePathFromRequest(request) {
+  return path.join(__dirname, 'files', request.params.file)
 }
 
-app.listen(PORT, ()=> console.log(`Listening @ http://127.0.0.1:${PORT}`))
+async function readHandler(request, reply) {
+  const filePath = getLocalFilePathFromRequest(request)
 
-
-app.get('*', setFileMeta, sendHeaders, (req, res) => {
-  if (res.body) {
-    res.json(res.body)
-    return
-  }
-
-  fs.createReadStream(req.filePath).pipe(res)
-})
-
-app.head('*', setFileMeta, sendHeaders, (req, res) => res.end())
-
-app.delete('*', setFileMeta, (req, res, next) => {
-  async ()=>{
-    if (!req.stat) return res.send(400, 'Invalid Path')
-
-    if (req.stat.isDirectory()) {
-      await rimraf.promise(req.filePath)
-    } else await fs.promise.unlink(req.filePath)
-    res.end()
-  }().catch(next)
-})
-
-app.put('*', setFileMeta, setDirDetails, (req, res, next) => {
-  async ()=>{
-    if (req.stat) return res.send(405, 'File exists')
-    await mkdirp.promise(req.dirPath)
-
-    if (!req.isDir) req.pipe(fs.createWriteStream(req.filePath))
-    res.end()
-  }().catch(next)
-})
-
-app.post('*', setFileMeta, setDirDetails, (req, res, next) => {
-  async ()=>{
-    if (!req.stat) return res.send(405, 'File does not exist')
-    if (req.isDir || req.stat.isDirectory()) return res.send(405, 'Path is a directory')
-
-    await fs.promise.truncate(req.filePath, 0)
-    req.pipe(fs.createWriteStream(req.filePath))
-    res.end()
-  }().catch(next)
-})
-
-
-function setDirDetails(req, res, next) {
-  let filePath = req.filePath
-  let endsWithSlash = filePath.charAt(filePath.length-1) === path.sep
-  let hasExt = path.extname(filePath) !== ''
-  req.isDir = endsWithSlash || !hasExt
-  req.dirPath = req.isDir ? filePath : path.dirname(filePath)
-  next()
+  console.log(`Reading ${filePath}`)
+  const data = await cat(filePath)
+  reply(data)
 }
 
-function setFileMeta(req, res, next) {
-  req.filePath = path.resolve(path.join(ROOT_DIR, req.url))
-  if (req.filePath.indexOf(ROOT_DIR) !== 0) {
-    res.send(400, 'Invalid path')
-    return
-  }
-  fs.promise.stat(req.filePath)
-    .then(stat => req.stat = stat, ()=> req.stat = null)
-    .nodeify(next)
+async function createHandler(request, reply) {
+  /* eslint no-unused-expressions: 0 */
+  const filePath = getLocalFilePathFromRequest(request)
+
+  console.log(`Creating ${filePath}`)
+
+  const stat = await fs.stat(filePath)
+  await stat.isDirectory() ? mkdir(filePath) : touch(filePath)
+  reply()
 }
 
-function sendHeaders(req, res, next) {
-  nodeify(async ()=> {
-    if (req.stat.isDirectory()) {
-      let files = await fs.promise.readdir(req.filePath)
-      res.body = JSON.stringify(files)
-      res.setHeader('Content-Length', res.body.length)
-      res.setHeader('Content-Type', 'application/json')
-      return
+async function updateHandler(request, reply) {
+  const filePath = getLocalFilePathFromRequest(request)
+
+  console.log(`Updating ${filePath}`)
+  await fs.writeFile(filePath, request.payload)
+  reply()
+}
+
+async function deleteHandler(request, reply) {
+  const filePath = getLocalFilePathFromRequest(request)
+
+  console.log(`Deleting ${filePath}`)
+  await rm(filePath)
+  reply()
+}
+
+async function main() {
+  const port = 8000
+  const server = new Hapi.Server({
+    debug: {
+      request: ['errors']
     }
+  })
+  server.register(asyncHandlerPlugin)
+  server.connection({ port })
 
-    res.setHeader('Content-Length', req.stat.size)
-    let contentType = mime.contentType(path.extname(req.filePath))
-    res.setHeader('Content-Type', contentType)
-  }(), next)
+  server.route([
+    // READ
+    {
+      method: 'GET',
+      path: '/{file*}',
+      handler: {
+        async: readHandler
+      }
+    },
+    // CREATE
+    {
+      method: 'PUT',
+      path: '/{file*}',
+      handler: {
+        async: createHandler
+      }
+    },
+    // UPDATE
+    {
+      method: 'POST',
+      path: '/{file*}',
+      handler: {
+        async: updateHandler
+      }
+    },
+    // DELETE
+    {
+      method: 'DELETE',
+      path: '/{file*}',
+      handler: {
+        async: deleteHandler
+      }
+    }
+  ])
+
+  await server.start()
+  console.log(`LISTENING @ http://127.0.0.1:${port}`)
 }
+
+main()
