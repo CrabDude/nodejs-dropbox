@@ -2,7 +2,7 @@
   "name": "nodejs-dropbox",
   "version": "1.0.0",
   "description": "A basic Dropbox clone to sync files across multiple remote folders.",
-  "main": "index.js",
+  "main": "server.js",
   "scripts": {
     "start": "nodemon  --exec 'babel-node -- ./' -- ",
     "once": "babel-node -- ./",
