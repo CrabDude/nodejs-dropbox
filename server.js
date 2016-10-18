@@ -55,7 +55,7 @@ async function main() {
   const port = 8000
   const server = new Hapi.Server({
     debug: {
-      request: ['errors']
+      request: ['error']
     }
   })
   server.register(asyncHandlerPlugin)
